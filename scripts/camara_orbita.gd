@@ -1,7 +1,7 @@
 extends Camera3D
 
 @export var objetivo := Vector3(0.0, 4.0, 0.0)
-@export var distancia := 150.0
+@export var distancia := 260.0
 @export var angulo_yaw := 0.6
 @export var angulo_pitch := -0.55
 @export var sensibilidad := 0.005
@@ -19,10 +19,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_arrastrando = event.pressed
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
-			distancia = clampf(distancia - vel_zoom, 30.0, 260.0)
+			distancia = clampf(distancia - vel_zoom, 30.0, 420.0)
 			_actualizar()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
-			distancia = clampf(distancia + vel_zoom, 30.0, 260.0)
+			distancia = clampf(distancia + vel_zoom, 30.0, 420.0)
 			_actualizar()
 	elif event is InputEventMouseMotion and _arrastrando:
 		angulo_yaw -= event.relative.x * sensibilidad

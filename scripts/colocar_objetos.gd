@@ -13,6 +13,34 @@ func _ready() -> void:
 		return
 	_colocar_palmeras(terreno)
 	_colocar_rocas(terreno)
+	_poblar_islas(terreno)
+
+
+func _poblar_islas(terreno: Node) -> void:
+	var total := 0
+	for k in terreno.ISLAS.size():
+		var centro: Vector2 = terreno.ISLAS[k]
+		var rad: float = terreno.ISLAS_RAD[k]
+		var puestas := 0
+		var intentos := 0
+		while puestas < 4 and intentos < 300:
+			intentos += 1
+			var ang := _azar(0.0, TAU)
+			var rr := sqrt(_azar(0.0, 1.0)) * rad * 0.35
+			var px: float = centro.x + cos(ang) * rr
+			var pz: float = centro.y + sin(ang) * rr
+			var h: float = terreno.altura_en(px, pz)
+			if h < 0.6 or h > 8.0:
+				continue
+			var n: Vector3 = terreno.normal_en(px, pz)
+			if n.y < 0.65:
+				continue
+			var palmera := _crear_palmera(px, h, pz)
+			palmera.name = "PalmeraIsl%d_%d" % [k, puestas]
+			add_child(palmera)
+			puestas += 1
+		total += puestas
+	print("Palmeras en islas: ", total, "/", terreno.ISLAS.size() * 4)
 
 
 func _azar(min_v: float, max_v: float) -> float:
@@ -21,12 +49,13 @@ func _azar(min_v: float, max_v: float) -> float:
 
 
 func _colocar_palmeras(terreno: Node) -> void:
+	var zona: float = 76.0 * float(terreno.N) / 241.0
 	var puestas := 0
 	var intentos := 0
 	while puestas < NUM_PALMERAS and intentos < NUM_PALMERAS * 200:
 		intentos += 1
-		var px := _azar(-76.0, 76.0)
-		var pz := _azar(-76.0, 76.0)
+		var px := _azar(-zona, zona)
+		var pz := _azar(-zona, zona)
 		var h: float = terreno.altura_en(px, pz)
 		if h < 0.5 or h > 7.0:
 			continue
@@ -41,12 +70,13 @@ func _colocar_palmeras(terreno: Node) -> void:
 
 
 func _colocar_rocas(terreno: Node) -> void:
+	var zona: float = 76.0 * float(terreno.N) / 241.0
 	var puestas := 0
 	var intentos := 0
 	while puestas < NUM_ROCAS and intentos < NUM_ROCAS * 60:
 		intentos += 1
-		var px := _azar(-76.0, 76.0)
-		var pz := _azar(-76.0, 76.0)
+		var px := _azar(-zona, zona)
+		var pz := _azar(-zona, zona)
 		var h: float = terreno.altura_en(px, pz)
 		if h < 4.0:
 			continue

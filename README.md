@@ -5,7 +5,7 @@ Isla 3D en **Godot 4.7.2** con terreno procedural.
 ## Contenido
 
 - **Terreno**: malla de 161×161 generada con ruido (FBM + ridged) — montañas, colinas y costa
-- **Zonas**: pasto verde, parches de tierra, roca en pendientes y nieve en los picos
+- **Zonas**: islas en pasto verde, mar azul fuera del borde de las islas, roca en pendientes pronunciadas y nieve en los picos
 - **Lagunas**: 3 depresiones en el terreno (preparadas para agua)
 - **Objetos**: 36 palmeras, 22 rocas y una casa con tejado a dos aguas y panel solar
 - **HUD**: tarjetas fijas (Panel Solar, Molino Eólico, Turbina Hidráulica, Batería)
