@@ -1,0 +1,67 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/generador_terreno.gd" id="1_terreno"]
+[ext_resource type="Script" path="res://scripts/colocar_objetos.gd" id="2_objetos"]
+[ext_resource type="Script" path="res://scripts/camara_orbita.gd" id="3_camara"]
+[ext_resource type="Script" path="res://scripts/casa.gd" id="4_casa"]
+[ext_resource type="Script" path="res://scripts/tarjetas.gd" id="5_tarjetas"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_piso"]
+size = Vector2(440, 440)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_piso"]
+albedo_color = Color(0.22, 0.55, 0.18, 1)
+roughness = 1.0
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_cielo"]
+sky_top_color = Color(0.25, 0.5, 0.85, 1)
+sky_horizon_color = Color(0.64, 0.66, 0.67, 1)
+ground_bottom_color = Color(0.2, 0.17, 0.13, 1)
+ground_horizon_color = Color(0.64, 0.66, 0.67, 1)
+
+[sub_resource type="Sky" id="Sky_cielo"]
+sky_material = SubResource("ProceduralSkyMaterial_cielo")
+
+[sub_resource type="Environment" id="Environment_isla"]
+background_mode = 2
+sky = SubResource("Sky_cielo")
+ambient_light_source = 3
+ambient_light_energy = 1.0
+tonemap_mode = 2
+ssao_enabled = true
+fog_enabled = true
+fog_light_color = Color(0.64, 0.66, 0.67, 1)
+fog_density = 0.0012
+
+[node name="Isla" type="Node3D"]
+
+[node name="Terreno" type="Node3D" parent="."]
+script = ExtResource("1_terreno")
+
+[node name="Objetos" type="Node3D" parent="."]
+script = ExtResource("2_objetos")
+
+[node name="Casa" type="Node3D" parent="."]
+script = ExtResource("4_casa")
+
+[node name="Piso" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -9.2, 0)
+mesh = SubResource("PlaneMesh_piso")
+surface_material_override/0 = SubResource("StandardMaterial3D_piso")
+
+[node name="Sol" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-50, -35, 0)
+shadow_enabled = true
+directional_shadow_max_distance = 250.0
+
+[node name="Entorno" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_isla")
+
+[node name="Camara" type="Camera3D" parent="."]
+current = true
+fov = 60.0
+script = ExtResource("3_camara")
+
+[node name="CapaUI" type="CanvasLayer" parent="."]
+layer = 10
+script = ExtResource("5_tarjetas")
