@@ -1,6 +1,21 @@
 extends CanvasLayer
 
-const TITULOS: Array[String] = ["PANEL SOLAR", "MOLINO EOLICO", "TURBINA HIDRAULICA", "BATERIA"]
+signal tarjeta_pulsada(indice: int)
+
+const TITULOS: Array[String] = ["PANEL SOLAR", "MOLINO EOLICO", "TURBINA HIDRAULICA", "BATERIA", "ELIMINAR"]
+const CLICKABLE: Array[int] = [0, 1, 2, 3, 4]
+
+const ICONOS: Dictionary = {
+	"PANEL SOLAR": "res://ui/panel_solar.png",
+	"MOLINO EOLICO": "res://ui/molino_eolico.png",
+	"TURBINA HIDRAULICA": "res://ui/turbina_hidraulica.png",
+	"BATERIA": "res://ui/bateria.png",
+	"ELIMINAR": "res://ui/prohibido.png",
+}
+
+var _paneles: Array[PanelContainer] = []
+var _estilos: Array[StyleBoxFlat] = []
+var _seleccion := -1
 
 const CAMPOS: Array = [
 	["ENERGIA GENERADA", "1.250 kWh"],
@@ -88,7 +103,7 @@ func _construir() -> void:
 	recuadro.add_child(contenedor)
 
 	for i in TITULOS.size():
-		contenedor.add_child(_crear_tarjeta(TITULOS[i]))
+		contenedor.add_child(_crear_tarjeta(TITULOS[i], i))
 
 	var esquina := VBoxContainer.new()
 	esquina.name = "Esquina"
@@ -266,7 +281,7 @@ func _crear_celda_clima(titulo: String, activo: bool, tipo: int) -> PanelContain
 	return panel
 
 
-func _crear_tarjeta(titulo: String) -> PanelContainer:
+func _crear_tarjeta(titulo: String, indice: int = -1) -> PanelContainer:
 	var panel := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.08, 0.09, 0.12, 0.78)
@@ -283,9 +298,9 @@ func _crear_tarjeta(titulo: String) -> PanelContainer:
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(vbox)
 
-	if titulo == "PANEL SOLAR":
+	if titulo in ICONOS:
 		var icono := TextureRect.new()
-		icono.texture = load("res://ui/panel_solar.png")
+		icono.texture = load(ICONOS[titulo])
 		icono.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icono.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icono.custom_minimum_size = Vector2(40, 40)
@@ -296,8 +311,36 @@ func _crear_tarjeta(titulo: String) -> PanelContainer:
 	var lbl_titulo := Label.new()
 	lbl_titulo.text = titulo
 	lbl_titulo.add_theme_font_size_override("font_size", 13)
-	lbl_titulo.add_theme_color_override("font_color", Color(0.91, 0.78, 0.48))
+	if titulo == "ELIMINAR":
+		lbl_titulo.add_theme_color_override("font_color", Color(0.95, 0.45, 0.4))
+	else:
+		lbl_titulo.add_theme_color_override("font_color", Color(0.91, 0.78, 0.48))
 	lbl_titulo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(lbl_titulo)
 
+	if indice >= 0:
+		_paneles.append(panel)
+		_estilos.append(sb)
+	if indice in CLICKABLE:
+		panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		panel.gui_input.connect(_al_pulsar.bind(indice))
+
 	return panel
+
+
+func _al_pulsar(event: InputEvent, indice: int) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		_resaltar(indice)
+		tarjeta_pulsada.emit(indice)
+
+
+func _resaltar(indice: int) -> void:
+	_seleccion = indice
+	for i in _estilos.size():
+		var seleccionada := _paneles[i] != null and _seleccion == i
+		_estilos[i].border_color = Color(0.91, 0.78, 0.48, 1.0) if seleccionada else Color(1, 1, 1, 0.15)
+		_estilos[i].border_width_top = 2 if seleccionada else 1
+		_estilos[i].border_width_bottom = 2 if seleccionada else 1
+		_estilos[i].border_width_left = 2 if seleccionada else 1
+		_estilos[i].border_width_right = 2 if seleccionada else 1

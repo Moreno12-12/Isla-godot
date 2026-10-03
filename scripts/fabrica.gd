@@ -15,6 +15,7 @@ func _azar(min_v: float, max_v: float) -> float:
 
 
 func _colocar() -> void:
+	print("Fabrica: _colocar inicio")
 	var terreno := get_node_or_null("../Terreno")
 	if terreno == null:
 		push_error("No se encontró el nodo Terreno")
@@ -25,6 +26,8 @@ func _colocar() -> void:
 	if casa != null:
 		for hijo in casa.get_children():
 			edificios.append(Vector2(hijo.global_position.x, hijo.global_position.z))
+
+	var objetitos := get_node_or_null("../Objetos")
 
 	var px := 0.0
 	var pz := 0.0
@@ -37,6 +40,7 @@ func _colocar() -> void:
 	var f_n := 0
 	var f_r := 0
 	var f_l := 0
+	var f_c := 0
 	while intentos < 40000 and not encontrado:
 		intentos += 1
 		var cx := _azar(-64.0, 64.0)
@@ -47,6 +51,9 @@ func _colocar() -> void:
 			continue
 		if terreno.normal_en(cx, cz).y < 0.9:
 			f_n += 1
+			continue
+		if terreno.en_zona_ciudad(cx, cz):
+			f_c += 1
 			continue
 		var hs: Array[float] = [ch]
 		for esq in esquinas:
@@ -79,7 +86,7 @@ func _colocar() -> void:
 			encontrado = true
 
 	if not hay_respaldo:
-		push_error("No se encontró ubicación para la fábrica (h=", f_h, " n=", f_n, " r=", f_r, " l=", f_l, " intentos=", intentos, ")")
+		push_error("No se encontro ubicacion para la fabrica (h=", f_h, " n=", f_n, " r=", f_r, " l=", f_l, " c=", f_c, " intentos=", intentos, ")")
 		return
 
 	var h_base: float = terreno.altura_en(px, pz)
@@ -89,6 +96,10 @@ func _colocar() -> void:
 
 	var movidos := _despejar(terreno, px, pz)
 
+	var quitados := 0
+	if objetitos != null and objetitos.has_method("despejar_en"):
+		quitados = objetitos.despejar_en(px, pz, 16.5, 12.5)
+
 	var hs_f: Array[float] = [h_base]
 	for esq in esquinas:
 		hs_f.append(terreno.altura_en(px + esq.x, pz + esq.y))
@@ -96,7 +107,7 @@ func _colocar() -> void:
 	var fondo: float = h_base - h_min + 1.5
 
 	_construir(fondo)
-	print("Fábrica colocada en (", snappedf(px, 0.1), ", ", snappedf(h_base, 0.1), ", ", snappedf(pz, 0.1), ") intentos=", intentos, " libre=", encontrado, " relieve=", snappedf(mejor_relieve, 0.01), " fondo=", snappedf(fondo, 0.1), " despejados=", movidos)
+	print("Fabrica colocada en (", snappedf(px, 0.1), ", ", snappedf(h_base, 0.1), ", ", snappedf(pz, 0.1), ") intentos=", intentos, " libre=", encontrado, " relieve=", snappedf(mejor_relieve, 0.01), " fondo=", snappedf(fondo, 0.1), " despejados=", movidos, " vegetales=", quitados)
 
 
 func _despejar(terreno: Node, px: float, pz: float) -> int:
@@ -105,6 +116,8 @@ func _despejar(terreno: Node, px: float, pz: float) -> int:
 	if objetitos == null:
 		return 0
 	for hijo in objetitos.get_children():
+		if hijo is MultiMeshInstance3D:
+			continue
 		var gx: float = hijo.global_position.x
 		var gz: float = hijo.global_position.z
 		if absf(gx - px) >= 16.5 or absf(gz - pz) >= 12.5:
@@ -118,6 +131,8 @@ func _despejar(terreno: Node, px: float, pz: float) -> int:
 				continue
 			var nh: float = terreno.altura_en(nx, nz)
 			if nh < 0.5 or nh > 22.0:
+				continue
+			if terreno.en_zona_ciudad(nx, nz):
 				continue
 			var en_laguna := false
 			for lg in LAGUNAS:

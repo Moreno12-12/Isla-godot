@@ -6,6 +6,12 @@ const ISLA_AMP := 18.0
 const COSTA_NIVEL := -9.2
 const RADIOS_ISLA: Array[float] = [50.0, 48.0, 46.0, 44.0, 42.0, 40.0, 38.0, 36.0]
 
+# Zona aplanada para la ciudad en la isla principal (junto a la costa)
+const CIUDAD_CENTRO := Vector2(-32.5, -56.3)
+const CIUDAD_RADIO := 42.0
+const CIUDAD_TRANSICION := 15.0
+var CIUDAD_ALTURA := 0.0
+
 var alturas := PackedFloat32Array()
 var ISLAS: Array[Vector2] = []
 var ISLAS_RAD: Array[float] = []
@@ -46,6 +52,13 @@ func _generar_alturas() -> void:
 	costa.fractal_octaves = 4
 	costa.frequency = 0.028
 
+	var costa_isla := FastNoiseLite.new()
+	costa_isla.seed = 707
+	costa_isla.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	costa_isla.fractal_type = FastNoiseLite.FRACTAL_FBM
+	costa_isla.fractal_octaves = 3
+	costa_isla.frequency = 0.055
+
 	var lagunas: Array[Vector2] = [Vector2(-45, 31.5), Vector2(48, -28.5), Vector2(12, 60)]
 	var medio := (N - 1) * 0.5
 	var base := PackedFloat32Array()
@@ -82,9 +95,33 @@ func _generar_alturas() -> void:
 			var h := base[x + z * N]
 			for k in ISLAS.size():
 				var sig := ISLAS_RAD[k] * 0.35
-				var d2 := Vector2(px, pz).distance_squared_to(ISLAS[k])
-				h += ISLA_AMP * exp(-d2 / (2.0 * sig * sig))
+				var dd := Vector2(px, pz).distance_to(ISLAS[k])
+				dd *= 1.0 + 0.18 * costa_isla.get_noise_2d(px, pz)
+				h += ISLA_AMP * exp(-(dd * dd) / (2.0 * sig * sig))
 			alturas[x + z * N] = clampf(h, -14.0, 34.0)
+
+	# Meseta de la ciudad: se aplana hacia la altura natural del centro.
+	# Solo se tocan celdas de tierra para no emergir suelo del mar.
+	CIUDAD_ALTURA = altura_en(CIUDAD_CENTRO.x, CIUDAD_CENTRO.y)
+	var radio_ext := CIUDAD_RADIO + CIUDAD_TRANSICION
+	for z in N:
+		for x in N:
+			var px := float(x) - medio
+			var pz := float(z) - medio
+			var h := alturas[x + z * N]
+			if h < COSTA_NIVEL:
+				continue
+			var d := Vector2(px, pz).distance_to(CIUDAD_CENTRO)
+			if d >= radio_ext:
+				continue
+			var t := smoothstep(radio_ext, CIUDAD_RADIO, d)
+			alturas[x + z * N] = lerpf(h, CIUDAD_ALTURA, t)
+	print("Meseta ciudad en ", CIUDAD_CENTRO, " altura=", snappedf(CIUDAD_ALTURA, 0.1),
+			" radio_plano=", CIUDAD_RADIO, " transicion=", CIUDAD_TRANSICION)
+
+
+func en_zona_ciudad(px: float, pz: float, margen: float = 6.0) -> bool:
+	return Vector2(px, pz).distance_to(CIUDAD_CENTRO) < CIUDAD_RADIO + CIUDAD_TRANSICION + margen
 
 
 func _h_en(base: PackedFloat32Array, px: float, pz: float) -> float:
@@ -133,7 +170,7 @@ func _elegir_islas(base: PackedFloat32Array) -> void:
 					continue
 				var r_centro := costa_r + 6.0 + radio
 				var centro := Vector2(cos(ang) * r_centro, sin(ang) * r_centro)
-				var max_centro := medio - 0.5 - 0.57 * radio
+				var max_centro := medio - 0.5 - 0.695 * radio
 				if absf(centro.x) > max_centro or absf(centro.y) > max_centro:
 					continue
 				if absf(centro.x) < 40.0 and centro.y > 75.0:

@@ -7,11 +7,17 @@ const ELEVACION := 0.35
 const BORDE := 120.0
 const MARGEN := 4.0
 const PESO_SUBIR := 2.5
+const PESO_CIUDAD := 4.0
+const UMBRAL_CAIDA := -1.0
+const RESALTO := 0.8
+const BULGE := 2.0
 
 
 var _heap_c := PackedFloat32Array()
 var _heap_x := PackedInt32Array()
 var _heap_z := PackedInt32Array()
+
+var camino: Array[Vector2] = []
 
 
 func _ready() -> void:
@@ -24,13 +30,17 @@ func _ready() -> void:
 		return
 
 	var pico := _buscar_pico(terreno)
-	var camino := _ruta(terreno, pico)
+	camino = _ruta(terreno, pico)
 	if camino.size() < 2:
 		push_error("Cascada: ruta demasiado corta (%d)" % camino.size())
 		return
 	_construir_cinta(terreno, camino)
+	var dmin := 9999.0
+	for p in camino:
+		dmin = minf(dmin, p.distance_to(terreno.CIUDAD_CENTRO))
 	print("Cascada: pico=", pico, " final=", camino[camino.size() - 1],
-			" puntos=", camino.size(), " alt_pico=", terreno.altura_en(pico.x, pico.y))
+			" puntos=", camino.size(), " alt_pico=", terreno.altura_en(pico.x, pico.y),
+			" dist_ciudad=", snappedf(dmin, 0.1))
 
 
 func _buscar_pico(terreno: Node3D) -> Vector2:
@@ -146,6 +156,9 @@ func _ruta(terreno: Node3D, pico: Vector2) -> Array[Vector2]:
 			var nidx := nx + nz * N
 			var h2: float = terreno.alturas[nidx]
 			var ec: float = float(nv[2]) + maxf(0.0, h2 - h) * PESO_SUBIR
+			# la cascada evita la meseta de la ciudad
+			if terreno.en_zona_ciudad(float(nx) - medio, float(nz) - medio, 8.0):
+				ec += PESO_CIUDAD
 			var nc := c + ec
 			if nc < dist[nidx]:
 				dist[nidx] = nc
@@ -168,37 +181,78 @@ func _ruta(terreno: Node3D, pico: Vector2) -> Array[Vector2]:
 
 func _construir_cinta(terreno: Node3D, camino: Array[Vector2]) -> void:
 	var n := camino.size()
+	var centro_3d := PackedVector3Array()
+	var flags := PackedByteArray()
+	var pozas := []
+	var caidas := 0
+
+	var h0: float = terreno.altura_en(camino[0].x, camino[0].y)
+	centro_3d.append(Vector3(camino[0].x, h0 + ELEVACION, camino[0].y))
+	flags.append(0)
+
+	for i in range(1, n):
+		var p0: Vector2 = camino[i - 1]
+		var p1: Vector2 = camino[i]
+		var h_a: float = terreno.altura_en(p0.x, p0.y)
+		var h_b: float = terreno.altura_en(p1.x, p1.y)
+		var d: float = p0.distance_to(p1)
+		var pend: float = (h_b - h_a) / d
+		if pend < UMBRAL_CAIDA and (h_a - h_b) > 2.0:
+			caidas += 1
+			var tang2 := (p1 - p0).normalized()
+			var pasos := clampi(int(ceil((h_a - h_b) / 2.0)), 3, 10)
+			for k in range(1, pasos + 1):
+				var u := float(k) / float(pasos)
+				var adelanto := RESALTO * (1.0 - u) + BULGE * sin(u * PI)
+				var pos2 := p0.lerp(p1, u) + tang2 * adelanto
+				var y := lerpf(h_a, h_b, u) + ELEVACION
+				centro_3d.append(Vector3(pos2.x, y, pos2.y))
+				flags.append(1)
+			var drop := h_a - h_b
+			var radio := clampf(6.0 + drop * 0.4, 6.0, 14.0)
+			pozas.append([Vector3(p1.x, h_b + 0.15, p1.y), radio, drop])
+		else:
+			centro_3d.append(Vector3(p1.x, h_b + ELEVACION, p1.y))
+			flags.append(0)
+
+	var m := centro_3d.size()
 	var verts := PackedVector3Array()
 	var normales := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var uvs2 := PackedVector2Array()
 	var idx := PackedInt32Array()
 	var dist := 0.0
-	var tang := Vector2.RIGHT
 
-	for i in n:
-		var p := camino[i]
-		var a := camino[maxi(i - 1, 0)]
-		var b := camino[mini(i + 1, n - 1)]
-		var t := b - a
-		if t != Vector2.ZERO:
-			tang = t.normalized()
-		var perp := Vector2(-tang.y, tang.x)
-		var f := float(i) / float(maxi(n - 1, 1))
+	for i in m:
+		var a3: Vector3 = centro_3d[maxi(i - 1, 0)]
+		var b3: Vector3 = centro_3d[mini(i + 1, m - 1)]
+		var t3 := b3 - a3
+		var th := Vector2(t3.x, t3.z)
+		if th != Vector2.ZERO:
+			th = th.normalized()
+		var perp := Vector2(-th.y, th.x)
+		var f := float(i) / float(maxi(m - 1, 1))
 		var ancho := lerpf(ANCHO_INICIO, ANCHO_FIN, f) * 0.5
 		if i > 0:
-			dist += p.distance_to(camino[i - 1])
-		var h: float = terreno.altura_en(p.x, p.y)
-		var centro := Vector3(p.x, h + ELEVACION, p.y)
+			dist += centro_3d[i].distance_to(centro_3d[i - 1])
+		var centro: Vector3 = centro_3d[i]
 		var lado := Vector3(perp.x, 0.0, perp.y) * ancho
 		verts.append(centro + lado)
 		verts.append(centro - lado)
-		var nrm: Vector3 = terreno.normal_en(p.x, p.y)
+		var nrm: Vector3
+		if flags[i] == 1:
+			nrm = Vector3(th.x, 0.0, th.y)
+		else:
+			nrm = terreno.normal_en(centro.x, centro.z)
 		normales.append(nrm)
 		normales.append(nrm)
 		uvs.append(Vector2(0.0, dist))
 		uvs.append(Vector2(1.0, dist))
+		var marca := Vector2(float(flags[i]), 0.0)
+		uvs2.append(marca)
+		uvs2.append(marca)
 
-	for i in n - 1:
+	for i in m - 1:
 		var a := i * 2
 		idx.append(a)
 		idx.append(a + 1)
@@ -207,11 +261,15 @@ func _construir_cinta(terreno: Node3D, camino: Array[Vector2]) -> void:
 		idx.append(a + 1)
 		idx.append(a + 3)
 
+	for entrada in pozas:
+		_agregar_poza(verts, normales, uvs, uvs2, idx, entrada[0], entrada[1])
+
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normales
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uvs2
 	arrays[Mesh.ARRAY_INDEX] = idx
 
 	var malla := ArrayMesh.new()
@@ -226,3 +284,97 @@ func _construir_cinta(terreno: Node3D, camino: Array[Vector2]) -> void:
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
+
+	for entrada in pozas:
+		var pos: Vector3 = entrada[0]
+		add_child(_hacer_particulas(pos + Vector3(0, 0.4, 0), true))
+		add_child(_hacer_particulas(pos + Vector3(0, 0.8, 0), false))
+
+	var lista := ""
+	for entrada in pozas:
+		lista += str(entrada[0]) + " drop=" + str(entrada[2]) + " | "
+	print("Cascada geom: caidas=", caidas, " pozas=", pozas.size(), " pts3d=", m, " en ", lista)
+
+
+func _agregar_poza(verts: PackedVector3Array, normales: PackedVector3Array,
+		uvs: PackedVector2Array, uvs2: PackedVector2Array,
+		idx: PackedInt32Array, pos: Vector3, radio: float) -> void:
+	var segs := 20
+	var centro_i := verts.size()
+	verts.append(pos)
+	normales.append(Vector3.UP)
+	uvs.append(Vector2(0.0, 0.14))
+	uvs2.append(Vector2.ZERO)
+	for s in segs:
+		var ang := TAU * float(s) / float(segs)
+		var dir := Vector2(cos(ang), sin(ang))
+		verts.append(pos + Vector3(dir.x, 0.0, dir.y) * radio)
+		normales.append(Vector3.UP)
+		uvs.append(Vector2(1.0, 0.14))
+		uvs2.append(Vector2.ZERO)
+	for s in segs:
+		var sig := (s + 1) % segs
+		idx.append(centro_i)
+		idx.append(centro_i + 1 + s)
+		idx.append(centro_i + 1 + sig)
+
+
+func _hacer_particulas(pos: Vector3, salpicadura: bool) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.position = pos
+	p.visibility_aabb = AABB(Vector3(-12, -12, -12), Vector3(24, 30, 24))
+	var proc := ParticleProcessMaterial.new()
+	var grad := Gradient.new()
+	var tam := 0.5
+	if salpicadura:
+		p.name = "Salpicadura"
+		p.amount = 120
+		p.lifetime = 0.9
+		p.explosiveness = 0.25
+		proc.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		proc.emission_sphere_radius = 1.4
+		proc.direction = Vector3(0, 1, 0)
+		proc.spread = 55.0
+		proc.initial_velocity_min = 5.0
+		proc.initial_velocity_max = 11.0
+		proc.gravity = Vector3(0, -11, 0)
+		proc.scale_min = 0.15
+		proc.scale_max = 0.45
+		grad.set_color(0, Color(1, 1, 1, 0.95))
+		grad.set_color(1, Color(1, 1, 1, 0.0))
+	else:
+		p.name = "Niebla"
+		p.amount = 30
+		p.lifetime = 4.0
+		proc.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		proc.emission_sphere_radius = 2.5
+		proc.direction = Vector3(0, 1, 0)
+		proc.spread = 35.0
+		proc.initial_velocity_min = 0.5
+		proc.initial_velocity_max = 1.6
+		proc.gravity = Vector3(0, 0.3, 0)
+		proc.scale_min = 1.5
+		proc.scale_max = 3.2
+		grad.set_color(0, Color(1, 1, 1, 0.3))
+		grad.set_color(1, Color(1, 1, 1, 0.0))
+		tam = 3.5
+	proc.color_ramp = _gradiente_textura(grad)
+	p.process_material = proc
+
+	var quad := QuadMesh.new()
+	quad.size = Vector2(tam, tam)
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.vertex_color_use_as_albedo = true
+	mat.disable_receive_shadows = true
+	quad.material = mat
+	p.draw_pass_1 = quad
+	return p
+
+
+func _gradiente_textura(grad: Gradient) -> GradientTexture1D:
+	var tex := GradientTexture1D.new()
+	tex.gradient = grad
+	return tex

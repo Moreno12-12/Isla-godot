@@ -44,11 +44,7 @@ func _colocar() -> void:
 		push_error("No se encontró el nodo Terreno")
 		return
 
-	var objetos_ocup: Array[Vector2] = []
 	var objetos := get_node_or_null("../Objetos")
-	if objetos != null:
-		for hijo in objetos.get_children():
-			objetos_ocup.append(Vector2(hijo.position.x, hijo.position.z))
 
 	var centro := Vector2.ZERO
 	var hay_centro := false
@@ -91,9 +87,9 @@ func _colocar() -> void:
 				continue
 			var sep_obj: float = 4.0 + maxf(huella.x, huella.y) * 0.5
 			var ok := true
-			for oc in objetos_ocup:
-				if Vector2(cx, cz).distance_to(oc) < sep_obj:
-					ok = false
+			if objetos != null and objetos.has_method("ocupado_en") \
+					and objetos.ocupado_en(cx, cz, sep_obj):
+				ok = false
 			if ok:
 				for j in puestos.size():
 					var sep_ed: float = (maxf(huella.x, huella.y) + maxf(huellas_puestas[j].x, huellas_puestas[j].y)) * 0.5 + 2.0

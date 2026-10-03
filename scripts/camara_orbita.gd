@@ -8,6 +8,7 @@ extends Camera3D
 @export var vel_zoom := 8.0
 
 var _arrastrando := false
+var bloqueado := false
 
 
 func _ready() -> void:
@@ -15,6 +16,8 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if bloqueado and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		return
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_arrastrando = event.pressed
