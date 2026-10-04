@@ -23,6 +23,7 @@ var _camara: Camera3D
 var _terreno: Node
 var _colocados: Array[Vector3] = []
 var _instanciados: Array[Node3D] = []
+var _tipos: Array[int] = []
 var _objetivo: Node3D
 
 const VERDE := Color(0.3, 0.9, 0.4, 0.4)
@@ -178,11 +179,13 @@ func _eliminar(obj: Node3D = null) -> void:
 	if i >= 0:
 		_colocados.remove_at(i)
 		_instanciados.remove_at(i)
+		_tipos.remove_at(i)
 	print("Elemento eliminado en (", snappedf(pos.x, 0.1), ", ", snappedf(pos.y, 0.1), ", ", snappedf(pos.z, 0.1), ")")
 	_objetivo.queue_free()
 	_objetivo = null
 	_valido = false
 	_material.albedo_color = Color(0.6, 0.6, 0.65, 0.25)
+	_refrescar_logica()
 
 
 func _actualizar_marcador() -> void:
@@ -217,6 +220,21 @@ func _colocar() -> void:
 	if objetitos != null and objetitos.has_method("despejar_en"):
 		objetitos.despejar_en(_posicion.x, _posicion.z, 5.0, 5.0)
 	_instanciar(_modo, _posicion)
+	_refrescar_logica()
+
+
+func tipos() -> Array[int]:
+	return _tipos
+
+
+func instancias() -> Array[Node3D]:
+	return _instanciados
+
+
+func _refrescar_logica() -> void:
+	var logica := get_node_or_null("../Logica")
+	if logica != null and logica.has_method("refrescar"):
+		logica.refrescar()
 
 
 func _instanciar(indice: int, pos: Vector3) -> Node3D:
@@ -233,6 +251,7 @@ func _instanciar(indice: int, pos: Vector3) -> Node3D:
 	_activar_animaciones(modelo)
 	_colocados.append(pos)
 	_instanciados.append(modelo)
+	_tipos.append(indice)
 	print(NOMBRES[indice], " colocado en (", snappedf(pos.x, 0.1), ", ", snappedf(pos.y, 0.1), ", ", snappedf(pos.z, 0.1), ")")
 	return modelo
 

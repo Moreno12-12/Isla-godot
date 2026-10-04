@@ -16,6 +16,8 @@ const ICONOS: Dictionary = {
 var _paneles: Array[PanelContainer] = []
 var _estilos: Array[StyleBoxFlat] = []
 var _seleccion := -1
+var _celdas_clima: Array = []
+var _icono_clima_grande: IconoClima = null
 
 const CAMPOS: Array = [
 	["ENERGIA GENERADA", "1.250 kWh"],
@@ -126,6 +128,7 @@ func _construir() -> void:
 	sol_grande.escala = 1.7
 	sol_grande.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	vbox_clima.add_child(sol_grande)
+	_icono_clima_grande = sol_grande
 
 	var clima := HBoxContainer.new()
 	clima.name = "Clima"
@@ -278,7 +281,31 @@ func _crear_celda_clima(titulo: String, activo: bool, tipo: int) -> PanelContain
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(lbl)
 
+	_celdas_clima.append([panel, sb, icono, lbl])
+
 	return panel
+
+
+func set_clima_ui(i: int) -> void:
+	for idx in _celdas_clima.size():
+		var c: Array = _celdas_clima[idx]
+		var activo := idx == i
+		var sb: StyleBoxFlat = c[1]
+		if activo:
+			sb.bg_color = Color(0.16, 0.17, 0.2, 0.92)
+			sb.border_color = Color(0.91, 0.78, 0.48, 0.85)
+		else:
+			sb.bg_color = Color(0.08, 0.09, 0.12, 0.7)
+			sb.border_color = Color(1, 1, 1, 0.15)
+		var icono: IconoClima = c[2]
+		icono.activo = activo
+		icono.queue_redraw()
+		var lbl: Label = c[3]
+		lbl.add_theme_color_override("font_color",
+				Color(0.91, 0.78, 0.48) if activo else Color(1, 1, 1, 0.45))
+	if _icono_clima_grande != null:
+		_icono_clima_grande.tipo = i
+		_icono_clima_grande.queue_redraw()
 
 
 func _crear_tarjeta(titulo: String, indice: int = -1) -> PanelContainer:

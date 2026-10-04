@@ -16,6 +16,8 @@ const BULGE := 2.0
 var _heap_c := PackedFloat32Array()
 var _heap_x := PackedInt32Array()
 var _heap_z := PackedInt32Array()
+var puntos: Array[Vector2] = []
+var poza_principal := Vector3.ZERO
 
 var camino: Array[Vector2] = []
 
@@ -34,6 +36,7 @@ func _ready() -> void:
 	if camino.size() < 2:
 		push_error("Cascada: ruta demasiado corta (%d)" % camino.size())
 		return
+	puntos = camino
 	_construir_cinta(terreno, camino)
 	var dmin := 9999.0
 	for p in camino:
@@ -287,6 +290,8 @@ func _construir_cinta(terreno: Node3D, camino: Array[Vector2]) -> void:
 
 	for entrada in pozas:
 		var pos: Vector3 = entrada[0]
+		if poza_principal == Vector3.ZERO:
+			poza_principal = pos
 		add_child(_hacer_particulas(pos + Vector3(0, 0.4, 0), true))
 		add_child(_hacer_particulas(pos + Vector3(0, 0.8, 0), false))
 
