@@ -18,6 +18,7 @@ var _estilos: Array[StyleBoxFlat] = []
 var _seleccion := -1
 var _celdas_clima: Array = []
 var _icono_clima_grande: IconoClima = null
+var _lbl_tiempo: Label = null
 
 const CAMPOS: Array = [
 	["ENERGIA GENERADA", "1.250 kWh"],
@@ -37,6 +38,8 @@ const CLIMA: Array = [
 	["LLUVIA", false],
 ]
 
+const TEXTOS_TIEMPO: Array[String] = ["TIEMPO SOLEADO", "TIEMPO NUBLADO", "TIEMPO LLUVIOSO"]
+
 
 class IconoClima extends Control:
 	var tipo := 0
@@ -46,7 +49,7 @@ class IconoClima extends Control:
 	func _init(p_tipo: int, p_activo: bool) -> void:
 		tipo = p_tipo
 		activo = p_activo
-		custom_minimum_size = Vector2(34, 30)
+		custom_minimum_size = Vector2(30, 27)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
@@ -123,12 +126,24 @@ func _construir() -> void:
 	vbox_clima.alignment = BoxContainer.ALIGNMENT_CENTER
 	recuadro_clima.add_child(vbox_clima)
 
+	var fila_tiempo := HBoxContainer.new()
+	fila_tiempo.name = "FilaTiempo"
+	fila_tiempo.add_theme_constant_override("separation", 8)
+	fila_tiempo.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox_clima.add_child(fila_tiempo)
+
 	var sol_grande := IconoClima.new(0, true)
-	sol_grande.custom_minimum_size = Vector2(52, 46)
-	sol_grande.escala = 1.7
-	sol_grande.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	vbox_clima.add_child(sol_grande)
+	sol_grande.custom_minimum_size = Vector2(40, 34)
+	sol_grande.escala = 1.2
+	fila_tiempo.add_child(sol_grande)
 	_icono_clima_grande = sol_grande
+
+	_lbl_tiempo = Label.new()
+	_lbl_tiempo.text = TEXTOS_TIEMPO[0]
+	_lbl_tiempo.add_theme_font_size_override("font_size", 14)
+	_lbl_tiempo.add_theme_color_override("font_color", Color(0.91, 0.78, 0.48))
+	_lbl_tiempo.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	fila_tiempo.add_child(_lbl_tiempo)
 
 	var clima := HBoxContainer.new()
 	clima.name = "Clima"
@@ -258,8 +273,8 @@ func _crear_celda_clima(titulo: String, activo: bool, tipo: int) -> PanelContain
 	sb.set_corner_radius_all(0)
 	sb.set_border_width_all(1)
 	sb.set_content_margin_all(6)
-	sb.content_margin_left = 12.0
-	sb.content_margin_right = 12.0
+	sb.content_margin_left = 8.0
+	sb.content_margin_right = 8.0
 	panel.add_theme_stylebox_override("panel", sb)
 
 	var vbox := VBoxContainer.new()
@@ -306,6 +321,8 @@ func set_clima_ui(i: int) -> void:
 	if _icono_clima_grande != null:
 		_icono_clima_grande.tipo = i
 		_icono_clima_grande.queue_redraw()
+	if _lbl_tiempo != null:
+		_lbl_tiempo.text = TEXTOS_TIEMPO[clampi(i, 0, TEXTOS_TIEMPO.size() - 1)]
 
 
 func _crear_tarjeta(titulo: String, indice: int = -1) -> PanelContainer:
